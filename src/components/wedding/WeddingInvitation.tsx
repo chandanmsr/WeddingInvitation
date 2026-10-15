@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -37,6 +38,16 @@ import wedding, {
   type WeddingEvent,
 } from "@/data/wedding";
 import { localRSVPService } from "@/lib/rsvp-service";
+import {
+  GaneshaBlessing,
+  RoyalCornerFlourish,
+  RoyalDholIcon,
+  RoyalFiligreeDivider,
+  RoyalHavanKundIcon,
+  RoyalKalashIcon,
+  RoyalPeacockIcon,
+  RoyalShehnaiIcon,
+} from "./RoyalMotifs";
 
 const navigation = [
   ["Home", "home"],
@@ -262,12 +273,78 @@ function Logo({ className = "", size = 48 }: { className?: string; size?: number
   return <AssetImage src={wedding.assets.logo} alt="" className={`logo-mark ${className}`} width={size} height={size} />;
 }
 
+function getEventMotifIcon(id: string) {
+  switch (id) {
+    case "mehendi":
+      return <RoyalPeacockIcon size={24} />;
+    case "sangeet":
+      return <RoyalShehnaiIcon size={24} />;
+    case "mayera":
+      return <RoyalKalashIcon size={24} />;
+    case "haldi":
+      return <span style={{ fontSize: 22, lineHeight: 1 }} aria-hidden="true">🪷</span>;
+    case "baraat":
+      return <RoyalDholIcon size={24} />;
+    case "wedding":
+      return <RoyalHavanKundIcon size={24} />;
+    default:
+      return <RoyalKalashIcon size={24} />;
+  }
+}
+
+function startIndianAmbientDrone() {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return null;
+    const ctx = new AudioCtx();
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0.001, ctx.currentTime);
+    masterGain.gain.exponentialRampToValueAtTime(0.14, ctx.currentTime + 2.5);
+    masterGain.connect(ctx.destination);
+
+    // Traditional Tanpura tuning frequencies: Pa (207.65 Hz), Sa (277.18 Hz), Sa (277.18 Hz), Kharaj Sa (138.59 Hz)
+    const freqs = [138.59, 207.65, 277.18, 554.37];
+    const oscs: OscillatorNode[] = [];
+    freqs.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = idx === 0 ? "triangle" : "sine";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      lfo.frequency.setValueAtTime(0.2 + idx * 0.12, ctx.currentTime);
+      lfoGain.gain.setValueAtTime(0.8, ctx.currentTime);
+      lfo.connect(osc.frequency);
+      lfo.start();
+
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      osc.connect(gain);
+      gain.connect(masterGain);
+      osc.start();
+      oscs.push(osc);
+    });
+
+    return {
+      stop: () => {
+        masterGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+        setTimeout(() => {
+          oscs.forEach((o) => { try { o.stop(); } catch {} });
+          try { ctx.close(); } catch {}
+        }, 1000);
+      }
+    };
+  } catch {
+    return null;
+  }
+}
+
 function SectionHeading({ eyebrow, title, light = false }: { eyebrow: string; title: string; light?: boolean }) {
   return (
     <div className={`section-heading ${light ? "section-heading-light" : ""}`}>
       <span className="eyebrow">{eyebrow}</span>
       <h2>{title}</h2>
-      <span className="ornament" aria-hidden="true"><i />✦<i /></span>
+      <RoyalFiligreeDivider />
     </div>
   );
 }
@@ -329,6 +406,7 @@ export default function WeddingInvitation() {
   const [wishStatus, setWishStatus] = useState("");
   const [shareStatus, setShareStatus] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
+  const ambientDroneRef = useRef<{ stop: () => void } | null>(null);
   const galleryTrackRef = useRef<HTMLDivElement>(null);
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(true);
@@ -360,13 +438,43 @@ export default function WeddingInvitation() {
     },
   });
 
+  const playMusic = useCallback(async (volume = 0.6) => {
+    if (!wedding.theme.enableMusic) return;
+    const audio = audioRef.current;
+    if (audio) {
+      try {
+        audio.volume = volume;
+        await audio.play();
+        setMusicPlaying(true);
+        setMusicUnavailable(false);
+        try { localStorage.setItem("sakshi-vivek-music-opt-in", "true"); } catch { /* optional */ }
+        return;
+      } catch (err) {
+        console.warn("Audio waiting for user gesture:", err);
+      }
+    }
+    // Fallback tanpura drone if audio element fails
+    const drone = startIndianAmbientDrone();
+    if (drone) {
+      ambientDroneRef.current = drone;
+      setMusicPlaying(true);
+      setMusicUnavailable(false);
+    } else {
+      setMusicUnavailable(true);
+      setMusicPlaying(false);
+    }
+  }, []);
+
   useEffect(() => {
+    setCoverOpen(true);
+    setDoorsOpening(false);
     try {
-      setCoverOpen(sessionStorage.getItem("sakshi-vivek-invitation-opened") !== "true");
       const storedWishes = localStorage.getItem("sakshi-vivek-wishes-demo");
       if (storedWishes) setWishes(JSON.parse(storedWishes) as Wish[]);
-    } catch {
-      setCoverOpen(true);
+    } catch { /* storage fallback */ }
+
+    if (audioRef.current) {
+      audioRef.current.volume = 0.6;
     }
   }, []);
 
@@ -462,39 +570,40 @@ export default function WeddingInvitation() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [coverOpen]);
 
+
+
   const openInvitation = () => {
     if (doorsOpening) return;
-    try { sessionStorage.setItem("sakshi-vivek-invitation-opened", "true"); } catch { /* Session storage can be disabled. */ }
     setDoorsOpening(true);
-    if (!reducedMotion) {
-      window.setTimeout(() => setPoppersActive(true), 500);
-      window.setTimeout(() => setPoppersActive(false), 6500);
-    }
-    window.setTimeout(() => setCoverOpen(false), reducedMotion ? 0 : 1900);
-    try {
-      if (localStorage.getItem("sakshi-vivek-music-opt-in") === "true") void toggleMusic();
-    } catch { /* Music remains optional when storage is disabled. */ }
+
+    // 1. Immediately play song at 60% volume upon opening invitation
+    void playMusic(0.6);
+
+    // 2. Launch celebratory petals and poppers as doors part
+    window.setTimeout(() => setPoppersActive(true), 1000);
+    window.setTimeout(() => setPoppersActive(false), 9500);
+
+    // 3. Keep cover for the full slow majestic 4.8s 3D door swing + settle, then unmount cleanly
+    window.setTimeout(() => {
+      setCoverOpen(false);
+      setDoorsOpening(false);
+    }, 5400);
   };
 
-  async function toggleMusic() {
+  const toggleMusic = async () => {
     const audio = audioRef.current;
-    if (!audio || !wedding.theme.enableMusic) return;
     if (musicPlaying) {
-      audio.pause();
+      if (audio) audio.pause();
+      if (ambientDroneRef.current) {
+        ambientDroneRef.current.stop();
+        ambientDroneRef.current = null;
+      }
       setMusicPlaying(false);
       try { localStorage.setItem("sakshi-vivek-music-opt-in", "false"); } catch { /* Preference storage is optional. */ }
       return;
     }
-    try {
-      await audio.play();
-      setMusicPlaying(true);
-      setMusicUnavailable(false);
-      try { localStorage.setItem("sakshi-vivek-music-opt-in", "true"); } catch { /* Preference storage is optional. */ }
-    } catch {
-      setMusicUnavailable(true);
-      setMusicPlaying(false);
-    }
-  }
+    await playMusic();
+  };
 
   async function submitRSVP(values: GuestFormValues) {
     setRsvpBusy(true);
@@ -620,17 +729,29 @@ export default function WeddingInvitation() {
       )}
       {wedding.theme.enableMusic && (
         <>
-          <audio ref={audioRef} src={wedding.theme.musicPath} loop preload="none" onError={() => setMusicUnavailable(true)} />
+          <audio
+            ref={audioRef}
+            loop
+            preload="auto"
+            playsInline
+            onLoadedMetadata={(e) => {
+              (e.target as HTMLAudioElement).volume = 0.6;
+            }}
+            onError={() => setMusicUnavailable(true)}
+          >
+            <source src="/audio/jashn_e_bahaaraa.mp3" type="audio/mpeg" />
+            <source src="/audio/jashn_e_bahaaraa.m4a" type="audio/mp4" />
+          </audio>
           {!coverOpen && (
             <button
               className={`music-control ${musicPlaying ? "is-playing" : ""}`}
               type="button"
               onClick={() => void toggleMusic()}
               aria-label={musicPlaying ? "Pause background music" : "Play background music"}
-              title={musicUnavailable ? "Add a licensed audio file to enable music" : musicPlaying ? "Pause music" : "Play music"}
+              title={musicPlaying ? "Pause music: Jashn-E-Bahaaraa" : "Play music: Jashn-E-Bahaaraa"}
             >
-              {musicPlaying ? <Pause size={17} /> : musicUnavailable ? <Volume2 size={17} /> : <Music2 size={17} />}
-              <span className="sr-only">{musicPlaying ? "Music playing" : musicUnavailable ? "Music unavailable" : "Music paused"}</span>
+              {musicPlaying ? <Pause size={17} /> : <Music2 size={17} />}
+              <span className="sr-only">{musicPlaying ? "Music playing" : "Music paused"}</span>
               {musicPlaying && <span className="sound-bars" aria-hidden="true"><i /><i /><i /></span>}
             </button>
           )}
@@ -669,9 +790,10 @@ export default function WeddingInvitation() {
           </motion.div>
           <div className="hero-shade" />
           <div className="hero-copy">
+            <div className="hero-shree-ganesh">॥ श्री गणेशाय नमः ॥</div>
             <Logo className="hero-logo" size={96} />
             <span className="eyebrow hero-eyebrow">{wedding.invitation.eyebrow}</span>
-            <span className="hero-rule" aria-hidden="true"><i />✦<i /></span>
+            <RoyalFiligreeDivider />
             <motion.h1 ref={heroTitleRef} tabIndex={-1} id="hero-title" initial={reducedMotion ? false : { opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 1 }}>
               {wedding.couple.brideFirstName}<span className="ampersand"> &amp; </span>{wedding.couple.groomFirstName}
             </motion.h1>
@@ -683,20 +805,37 @@ export default function WeddingInvitation() {
               <a className="button button-outline-light" href="#rsvp">Kindly reply</a>
             </div>
           </div>
+          <RoyalCornerFlourish position="top-left" />
+          <RoyalCornerFlourish position="top-right" />
+          <RoyalCornerFlourish position="bottom-left" />
+          <RoyalCornerFlourish position="bottom-right" />
           <a className="scroll-cue" href="#invitation" aria-label="Scroll to invitation message"><span>Scroll to discover</span><ArrowDown size={17} /></a>
           <div className="hero-frame" aria-hidden="true" />
         </section>
 
         <section className="invitation section-pad" id="invitation">
           <Reveal className="invitation-inner">
+            <GaneshaBlessing />
             <span className="eyebrow">{wedding.invitation.eyebrow}</span>
             <h2>{wedding.invitation.heading}</h2>
-            <span className="lotus-mark" aria-hidden="true">❋</span>
+            <RoyalFiligreeDivider />
             <p className="invitation-message">{wedding.invitation.message}</p>
-            <div className="family-grid">
-              <div><span>{wedding.families.brideFamilyLabel}</span><strong>{wedding.families.brideFamilyNames}</strong></div>
-              <span className="family-divider" aria-hidden="true">✦</span>
-              <div><span>{wedding.families.groomFamilyLabel}</span><strong>{wedding.families.groomFamilyNames}</strong></div>
+            <div className="family-container">
+              <div className="family-box">
+                <RoyalCornerFlourish position="top-left" />
+                <RoyalCornerFlourish position="bottom-right" />
+                <span>{wedding.families.brideFamilyLabel}</span>
+                <strong>{wedding.families.brideFamilyNames}</strong>
+              </div>
+              <div className="family-center-icon" aria-hidden="true">
+                <RoyalKalashIcon size={34} />
+              </div>
+              <div className="family-box">
+                <RoyalCornerFlourish position="top-left" />
+                <RoyalCornerFlourish position="bottom-right" />
+                <span>{wedding.families.groomFamilyLabel}</span>
+                <strong>{wedding.families.groomFamilyNames}</strong>
+              </div>
             </div>
           </Reveal>
         </section>
@@ -705,9 +844,9 @@ export default function WeddingInvitation() {
           <div className="couple-layout">
             <Reveal className="couple-art">
               <div className="portrait-frame">
+                <RoyalCornerFlourish position="top-left" />
+                <RoyalCornerFlourish position="top-right" />
                 {wedding.couple.portraitImage && <AssetImage src={wedding.couple.portraitImage} alt={`Portrait of ${wedding.couple.displayName}`} fill sizes="(max-width: 760px) 90vw, 440px" className="portrait-image" />}
-                <div className="portrait-sun" />
-                <div className="portrait-arch" />
                 <div className="portrait-shade" aria-hidden="true" />
                 <Logo className="portrait-logo" size={72} />
                 <span className="portrait-caption">A story written together</span>
@@ -718,8 +857,8 @@ export default function WeddingInvitation() {
               <span className="eyebrow">The two of us</span>
               <h2 id="couple-title">A little about<br /><em>our hearts</em></h2>
               <p>{wedding.couple.shortIntroduction}</p>
-              <div className="bio-row">{wedding.couple.bridePortraitImage ? <Image className="bio-portrait" src={wedding.couple.bridePortraitImage} alt={`${wedding.couple.brideFirstName} portrait`} width={56} height={56} /> : <span className="bio-initial">{wedding.couple.brideFirstName[0]}</span>}<div><h3>{wedding.couple.brideFirstName}</h3><p>{wedding.couple.brideIntroduction}</p></div></div>
-              <div className="bio-row">{wedding.couple.groomPortraitImage ? <Image className="bio-portrait" src={wedding.couple.groomPortraitImage} alt={`${wedding.couple.groomFirstName} portrait`} width={56} height={56} /> : <span className="bio-initial">{wedding.couple.groomFirstName[0]}</span>}<div><h3>{wedding.couple.groomFirstName}</h3><p>{wedding.couple.groomIntroduction}</p></div></div>
+              <div className="bio-row">{wedding.couple.bridePortraitImage ? <Image className="bio-portrait" src={wedding.couple.bridePortraitImage} alt={`${wedding.couple.brideFirstName} portrait`} width={64} height={64} /> : <span className="bio-initial">{wedding.couple.brideFirstName[0]}</span>}<div><h3>{wedding.couple.brideFirstName}</h3><p>{wedding.couple.brideIntroduction}</p></div></div>
+              <div className="bio-row">{wedding.couple.groomPortraitImage ? <Image className="bio-portrait" src={wedding.couple.groomPortraitImage} alt={`${wedding.couple.groomFirstName} portrait`} width={64} height={64} /> : <span className="bio-initial">{wedding.couple.groomFirstName[0]}</span>}<div><h3>{wedding.couple.groomFirstName}</h3><p>{wedding.couple.groomIntroduction}</p></div></div>
               <p className="couple-closing">Together, we can’t wait to begin our next chapter.</p>
             </Reveal>
           </div>
@@ -749,20 +888,39 @@ export default function WeddingInvitation() {
             <div className="event-grid">
               {enabledEvents.map((event, index) => (
                 <Reveal key={event.id} className={`event-card event-${event.accentColor}`}>
-                  <span className="event-number">0{index + 1}</span>
-                  {event.image && <Image className="event-card-image" src={event.image} alt="" width={84} height={84} />}
-                  <span className="event-symbol" aria-hidden="true">{event.icon}</span>
-                  <span className="event-kicker">The celebration</span>
-                  <h3>{event.name}</h3>
-                  <p className="event-date"><CalendarDays size={15} />{formatDate(event.date)}</p>
-                  {event.startTime && <p className="event-detail"><Clock3 size={15} />{formatTime(event.startTime)}{event.endTime ? ` – ${formatTime(event.endTime)}` : ""}</p>}
-                  {event.venueName && <p className="event-detail"><MapPin size={15} />{event.venueName}</p>}
-                  <p className="event-description">{event.description}</p>
-                  {event.dressCode && <p className="dress-code"><span>Dress with</span>{event.dressCode}</p>}
-                  <div className="event-actions">
-                    {!wedding.privacy.hideFullAddresses && safeHttpUrl(event.mapUrl) && <a className="text-action" href={safeHttpUrl(event.mapUrl)!} target="_blank" rel="noreferrer"><MapPin size={15} /> View map</a>}
-                    <EventCalendarActions event={event} />
-                    {event.showInRSVP && <a className="text-action" href="#rsvp"><ArrowRight size={15} /> RSVP for this event</a>}
+                  {event.image ? (
+                    <div className="event-media-window">
+                      <Image
+                        className="event-media-img"
+                        src={event.image}
+                        alt={event.name}
+                        fill
+                        sizes="(max-width: 760px) 100vw, 540px"
+                      />
+                      <div className="event-media-arch" />
+                      <span className="event-badge-number">0{index + 1}</span>
+                      <div className="event-badge-icon" aria-hidden="true">
+                        {getEventMotifIcon(event.id)}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="event-badge-icon event-badge-noimg" aria-hidden="true">
+                      {getEventMotifIcon(event.id)}
+                    </div>
+                  )}
+                  <div className="event-content-body">
+                    <span className="event-kicker">Auspicious Celebration</span>
+                    <h3>{event.name}</h3>
+                    <p className="event-date"><CalendarDays size={15} />{formatDate(event.date)}</p>
+                    {event.startTime && <p className="event-detail"><Clock3 size={15} />{formatTime(event.startTime)}{event.endTime ? ` – ${formatTime(event.endTime)}` : ""}</p>}
+                    {event.venueName && <p className="event-detail"><MapPin size={15} />{event.venueName}</p>}
+                    <p className="event-description">{event.description}</p>
+                    {event.dressCode && <p className="dress-code"><span>Dress with</span>{event.dressCode}</p>}
+                    <div className="event-actions">
+                      {!wedding.privacy.hideFullAddresses && safeHttpUrl(event.mapUrl) && <a className="text-action" href={safeHttpUrl(event.mapUrl)!} target="_blank" rel="noreferrer"><MapPin size={15} /> View map</a>}
+                      <EventCalendarActions event={event} />
+                      {event.showInRSVP && <a className="text-action" href="#rsvp"><ArrowRight size={15} /> RSVP for this event</a>}
+                    </div>
                   </div>
                 </Reveal>
               ))}
@@ -974,7 +1132,7 @@ export default function WeddingInvitation() {
           <h2>{wedding.couple.displayName}</h2>
           <p>{wedding.couple.closingLine}</p>
           <span className="closing-hashtag">{wedding.couple.hashtag}</span>
-          <span className="closing-ornament" aria-hidden="true">✦　❋　✦</span>
+          <RoyalFiligreeDivider />
           <small>Made with love, for a day to remember</small>
         </footer>
       </main>
@@ -983,21 +1141,91 @@ export default function WeddingInvitation() {
 
       <AnimatePresence>
         {coverOpen && (
-          <motion.div className="cover" role="dialog" aria-modal="true" aria-label="Palace doors. Open the wedding invitation" initial={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: reducedMotion ? 0 : 0.4 } }}>
-            <motion.div className="cover-glow" initial={{ opacity: 1 }} animate={{ opacity: doorsOpening ? 0 : 1 }} transition={{ duration: reducedMotion ? 0 : 1.8, delay: reducedMotion ? 0 : 0.4 }} aria-hidden="true" />
-            <motion.div className="palace-door palace-door-left" initial={{ rotateY: 0 }} animate={{ rotateY: doorsOpening ? -112 : 0 }} transition={{ duration: reducedMotion ? 0 : 1.7, ease: [0.65, 0, 0.25, 1] }} aria-hidden="true">
-              <span className="palace-door-panel">❋</span>
+          <motion.div
+            className={`cover ${doorsOpening ? "doors-opening" : ""}`}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Palace doors. Open the wedding invitation"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: reducedMotion ? 0 : 0.6 } }}
+          >
+            {/* Radiant seam light beam that glows between parting doors */}
+            <motion.div
+              className="cover-seam-glow"
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: doorsOpening ? [0, 1, 0.7, 0] : 0,
+              }}
+              transition={{ duration: 4.8, delay: 0.35, times: [0, 0.25, 0.75, 1], ease: "easeInOut" }}
+              aria-hidden="true"
+            />
+
+            {/* Left 3D Palace Door */}
+            <motion.div
+              className="palace-door palace-door-left"
+              style={{ transformOrigin: "left center" }}
+              initial={{ rotateY: 0 }}
+              animate={{
+                rotateY: doorsOpening ? -102 : 0,
+              }}
+              transition={{
+                duration: 4.8,
+                delay: 0.35,
+                ease: [0.4, 0.05, 0.2, 1],
+              }}
+              aria-hidden="true"
+              onClick={openInvitation}
+            >
+              <div className="door-carving-overlay" />
+              <div className="door-knocker door-knocker-left" />
             </motion.div>
-            <motion.div className="palace-door palace-door-right" initial={{ rotateY: 0 }} animate={{ rotateY: doorsOpening ? 112 : 0 }} transition={{ duration: reducedMotion ? 0 : 1.7, ease: [0.65, 0, 0.25, 1] }} aria-hidden="true">
-              <span className="palace-door-panel">❋</span>
+
+            {/* Right 3D Palace Door */}
+            <motion.div
+              className="palace-door palace-door-right"
+              style={{ transformOrigin: "right center" }}
+              initial={{ rotateY: 0 }}
+              animate={{
+                rotateY: doorsOpening ? 102 : 0,
+              }}
+              transition={{
+                duration: 4.8,
+                delay: 0.35,
+                ease: [0.4, 0.05, 0.2, 1],
+              }}
+              aria-hidden="true"
+              onClick={openInvitation}
+            >
+              <div className="door-carving-overlay" />
+              <div className="door-knocker door-knocker-right" />
             </motion.div>
-            <motion.div className="cover-plaque" initial={{ opacity: 1 }} animate={{ opacity: doorsOpening ? 0 : 1 }} transition={{ duration: reducedMotion ? 0 : 0.35 }}>
-              <Logo className="cover-logo" size={88} />
-              <p className="cover-title">You are invited</p>
-              {/* <h2 className="cover-names">{wedding.couple.displayName}</h2> */}
-              <button className="button button-primary cover-button" ref={openInvitationRef} type="button" onClick={openInvitation} disabled={doorsOpening}>Open invitation <ArrowRight size={16} /></button>
-              <span className="cover-tap">Step through the palace doors</span>
-            </motion.div>
+
+            {/* Central Royal Plaque - Perfectly Centered in Middle */}
+            <div className="cover-center-stage">
+              <motion.div
+                className="cover-plaque"
+                initial={{ opacity: 1, scale: 1 }}
+                animate={{
+                  opacity: doorsOpening ? 0 : 1,
+                  scale: doorsOpening ? 0.9 : 1,
+                }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+              >
+                <span className="cover-mantra">॥ श्री गणेशाय नमः ॥</span>
+                <p className="cover-title">Royal Wedding Invitation</p>
+                <h2 className="cover-names">{wedding.couple.displayName}</h2>
+                <button
+                  className="button button-primary cover-button"
+                  ref={openInvitationRef}
+                  type="button"
+                  onClick={openInvitation}
+                  disabled={doorsOpening}
+                >
+                  Open Invitation <ArrowRight size={16} />
+                </button>
+                <span className="cover-tap">Step through the palace doors</span>
+              </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,12 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, DM_Sans } from "next/font/google";
+import { Cinzel, Cormorant_Garamond, DM_Sans } from "next/font/google";
 import wedding from "@/data/wedding";
 import "./globals.css";
 
 const display = Cormorant_Garamond({
   subsets: ["latin"],
   variable: "--next-font-display",
-  weight: ["400", "500", "600"],
+  weight: ["300", "400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
+const royal = Cinzel({
+  subsets: ["latin"],
+  variable: "--next-font-royal",
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 const sans = DM_Sans({
@@ -48,7 +55,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable}`}>
+    <html lang="en" className={`${display.variable} ${royal.variable} ${sans.variable}`}>
       <body>{children}</body>
     </html>
   );
