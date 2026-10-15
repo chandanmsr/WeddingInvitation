@@ -1,64 +1,18 @@
 import React from "react";
+import Image from "next/image";
 
 export function GaneshaBlessing({ className = "" }: { className?: string }) {
   return (
     <div className={`ganesha-blessing-wrap ${className}`}>
       <div className="ganesha-emblem">
-        <svg viewBox="0 0 100 100" className="ganesha-svg" aria-hidden="true">
-          <defs>
-            <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#fdf1c8" />
-              <stop offset="40%" stopColor="#d4af37" />
-              <stop offset="70%" stopColor="#aa7c11" />
-              <stop offset="100%" stopColor="#f3e5ab" />
-            </linearGradient>
-            <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodColor="#7d1d33" floodOpacity="0.4" />
-            </filter>
-          </defs>
-          {/* Ornate halo */}
-          <circle cx="50" cy="50" r="46" fill="none" stroke="url(#goldGrad)" strokeWidth="1.2" strokeDasharray="3 2" />
-          <circle cx="50" cy="50" r="42" fill="none" stroke="url(#goldGrad)" strokeWidth="0.8" opacity="0.7" />
-          
-          {/* Stylized Minimalist Royal Ganesha */}
-          {/* Crown (Mukut) */}
-          <path
-            d="M50 14 L55 24 L52 24 L56 31 L44 31 L48 24 L45 24 Z"
-            fill="url(#goldGrad)"
-            filter="url(#goldGlow)"
-          />
-          {/* Tilak / Trishul */}
-          <path d="M50 25 L50 33 M48 27 Q50 30 52 27" stroke="url(#goldGrad)" strokeWidth="1" fill="none" />
-          {/* Head & Ears */}
-          <path
-            d="M36 34 Q30 35 28 42 Q26 49 33 51 Q37 52 38 48 Q39 40 46 38"
-            fill="none"
-            stroke="url(#goldGrad)"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-          />
-          <path
-            d="M64 34 Q70 35 72 42 Q74 49 67 51 Q63 52 62 48 Q61 40 54 38"
-            fill="none"
-            stroke="url(#goldGrad)"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-          />
-          {/* Brow and Trunk (Vakratunda) */}
-          <path
-            d="M44 37 Q50 36 56 37 Q53 47 52 56 Q51 68 59 71 Q64 73 65 68 Q66 63 60 62"
-            fill="none"
-            stroke="url(#goldGrad)"
-            strokeWidth="2.6"
-            strokeLinecap="round"
-          />
-          {/* Auspicious Modak / Lotus in hand */}
-          <ellipse cx="34" cy="58" rx="4" ry="5" fill="url(#goldGrad)" />
-          {/* Tusk (Ekdanta) */}
-          <path d="M44 50 L41 53" stroke="url(#goldGrad)" strokeWidth="1.8" strokeLinecap="round" />
-          {/* Small lotus petal below */}
-          <path d="M48 76 Q50 72 52 76 Q50 80 48 76 Z" fill="url(#goldGrad)" />
-        </svg>
+        <Image
+          src="/images/royal_ganesha.jpg"
+          alt="Lord Ganesha Blessing"
+          width={90}
+          height={90}
+          className="ganesha-img"
+          priority
+        />
       </div>
       <div className="ganesha-mantra">
         <span className="shree-ganesh">॥ श्री गणेशाय नमः ॥</span>

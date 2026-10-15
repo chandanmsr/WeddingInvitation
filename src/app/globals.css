@@ -180,9 +180,33 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   text-align: center;
 }
 .ganesha-emblem {
-  width: 72px;
-  height: 72px;
-  filter: drop-shadow(0 2px 10px rgba(88, 10, 28, .2));
+  position: relative;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  padding: 3px;
+  background: linear-gradient(135deg, #fdf1c8 0%, #d4af37 40%, #aa7c11 75%, #f3e5ab 100%);
+  box-shadow:
+    0 6px 20px rgba(88, 10, 28, 0.28),
+    0 0 16px rgba(212, 175, 55, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+.ganesha-emblem:hover {
+  transform: scale(1.05);
+  box-shadow:
+    0 8px 26px rgba(88, 10, 28, 0.35),
+    0 0 24px rgba(212, 175, 55, 0.55);
+}
+.ganesha-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
 }
 .ganesha-svg { width: 100%; height: 100%; }
 .ganesha-mantra { display: flex; flex-direction: column; gap: 4px; }
