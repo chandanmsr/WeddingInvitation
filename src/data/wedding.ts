@@ -344,7 +344,7 @@ const wedding: WeddingConfig = {
     enableMusic: true,
     enableParallax: true,
     musicPath: "/audio/jashn_e_bahaaraa.mp3",
-    showWishes: true,
+    showWishes: false,
   },
 };
 

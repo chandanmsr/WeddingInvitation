@@ -6,13 +6,9 @@ import {
   useMemo,
   useRef,
   useState,
-  type FormEvent,
   type ReactNode,
 } from "react";
-import { z } from "zod";
 import Image from "next/image";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import {
   ArrowDown,
@@ -20,7 +16,6 @@ import {
   ArrowRight,
   ArrowUp,
   CalendarDays,
-  Check,
   Clock3,
   Copy,
   MapPin,
@@ -28,16 +23,13 @@ import {
   Menu,
   Music2,
   Pause,
-  Printer,
   Share2,
   Volume2,
   X,
 } from "lucide-react";
 import wedding, {
-  type RSVPSubmission,
   type WeddingEvent,
 } from "@/data/wedding";
-import { localRSVPService } from "@/lib/rsvp-service";
 import {
   GaneshaBlessing,
   RoyalCornerFlourish,
@@ -55,7 +47,6 @@ const navigation = [
   ["Our Story", "story"],
   ["Gallery", "gallery"],
   ["Venue", "venue"],
-  ["RSVP", "rsvp"],
 ] as const;
 
 const petalGlyphs = ["✿", "❀", "✾", "❁", "✽", "❋"];
@@ -169,43 +160,7 @@ function PartyPoppers() {
   return <canvas ref={canvasRef} className="popper-canvas" aria-hidden="true" />;
 }
 
-const attendanceLabels = {
-  attending: "Joyfully attending",
-  maybe: "Still confirming",
-  declining: "Regretfully unable to attend",
-} as const;
 
-const guestSchema = z.object({
-  guestName: z.string().trim().min(2, "Please enter your name.").max(80, "Please keep your name under 80 characters."),
-  phone: z.string().trim().min(7, "Please enter a valid phone number.").max(25, "Please enter a valid phone number.").regex(/^[+\d()[\].\-\s]+$/, "Please enter a valid phone number.").refine((value) => {
-    const digits = value.replace(/\D/g, "").length;
-    return digits >= 7 && digits <= 15;
-  }, "Please enter a valid phone number."),
-  email: z.union([z.literal(""), z.string().trim().email("Please enter a valid email address.")]).optional(),
-  attendeeCount: z.number().int().min(wedding.rsvp.minAttendees).max(wedding.rsvp.maxAttendees),
-  attendance: z.enum(["attending", "maybe", "declining"], { required_error: "Please choose your response." }),
-  events: z.array(z.string()),
-  dietaryPreference: z.string(),
-  accommodation: z.boolean(),
-  transportation: z.boolean(),
-  message: z.string().max(500, "Please keep your message under 500 characters."),
-  consent: z.boolean(),
-}).superRefine((value, context) => {
-  if (value.attendance === "attending" && value.events.length === 0) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ["events"], message: "Please select at least one celebration." });
-  }
-  if (wedding.rsvp.showConsent && !value.consent) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ["consent"], message: "Please confirm before submitting." });
-  }
-});
-
-type GuestFormValues = z.infer<typeof guestSchema>;
-type Wish = { name: string; message: string };
-
-const seedWishes: Wish[] = [
-  { name: "With love", message: "Wishing you a lifetime filled with laughter, kindness, and beautiful little moments." },
-  { name: "A well-wisher", message: "May your new journey together be surrounded by love and endless happiness." },
-];
 
 function formatDate(date: string | null) {
   if (!date || Number.isNaN(Date.parse(date))) return "Date to be announced";
@@ -399,18 +354,12 @@ export default function WeddingInvitation() {
   const [musicPlaying, setMusicPlaying] = useState(false);
   const [musicUnavailable, setMusicUnavailable] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const [rsvpSaved, setRsvpSaved] = useState<RSVPSubmission | null>(null);
-  const [rsvpStatus, setRsvpStatus] = useState("");
-  const [rsvpBusy, setRsvpBusy] = useState(false);
-  const [wishes, setWishes] = useState<Wish[]>(seedWishes);
-  const [wishStatus, setWishStatus] = useState("");
   const [shareStatus, setShareStatus] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
   const ambientDroneRef = useRef<{ stop: () => void } | null>(null);
   const galleryTrackRef = useRef<HTMLDivElement>(null);
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(true);
-  const wishFormRef = useRef<HTMLFormElement>(null);
   const openInvitationRef = useRef<HTMLButtonElement>(null);
   const heroTitleRef = useRef<HTMLHeadingElement>(null);
   const lightboxCloseRef = useRef<HTMLButtonElement>(null);
@@ -421,22 +370,6 @@ export default function WeddingInvitation() {
 
   const enabledEvents = useMemo(() => wedding.events.filter((event) => event.enabled), []);
   const gallery = wedding.gallery;
-  const form = useForm<GuestFormValues>({
-    resolver: zodResolver(guestSchema),
-    defaultValues: {
-      guestName: "",
-      phone: "",
-      email: "",
-      attendeeCount: wedding.rsvp.minAttendees,
-      attendance: undefined,
-      events: [],
-      dietaryPreference: "",
-      accommodation: false,
-      transportation: false,
-      message: "",
-      consent: false,
-    },
-  });
 
   const playMusic = useCallback(async (volume = 0.6) => {
     if (!wedding.theme.enableMusic) return;
@@ -468,10 +401,6 @@ export default function WeddingInvitation() {
   useEffect(() => {
     setCoverOpen(true);
     setDoorsOpening(false);
-    try {
-      const storedWishes = localStorage.getItem("sakshi-vivek-wishes-demo");
-      if (storedWishes) setWishes(JSON.parse(storedWishes) as Wish[]);
-    } catch { /* storage fallback */ }
 
     if (audioRef.current) {
       audioRef.current.volume = 0.6;
@@ -604,50 +533,6 @@ export default function WeddingInvitation() {
     }
     await playMusic();
   };
-
-  async function submitRSVP(values: GuestFormValues) {
-    setRsvpBusy(true);
-    setRsvpStatus("");
-    try {
-      const submission: RSVPSubmission = { ...values, email: values.email || undefined };
-      await localRSVPService.save(submission);
-      setRsvpSaved(submission);
-      setRsvpStatus("Thank you. Your response has been saved in this browser.");
-      form.reset();
-    } catch {
-      setRsvpStatus("We couldn’t save your response in this browser. Your entries are still here—please try again.");
-    } finally {
-      setRsvpBusy(false);
-    }
-  }
-
-  function editRSVP() {
-    if (!rsvpSaved) return;
-    form.reset({ ...rsvpSaved, email: rsvpSaved.email ?? "" });
-    setRsvpSaved(null);
-    setRsvpStatus("");
-  }
-
-  function submitWish(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formElement = wishFormRef.current;
-    if (!formElement) return;
-    const data = new FormData(formElement);
-    const name = String(data.get("wish-name") ?? "").trim();
-    const message = String(data.get("wish-message") ?? "").trim();
-    if (name.length < 2 || message.length < 3 || message.length > 240) {
-      setWishStatus("Please add your name and a message of up to 240 characters.");
-      return;
-    }
-    // Demo wishes are local-only; production moderation must happen on a backend.
-    const updated = [{ name, message }, ...wishes];
-    setWishes(updated);
-    setWishStatus("Your wish has been added on this device.");
-    formElement.reset();
-    try { localStorage.setItem("sakshi-vivek-wishes-demo", JSON.stringify(updated)); } catch {
-      setWishStatus("Your wish is visible for now, but could not be saved on this device.");
-    }
-  }
 
   async function shareInvitation() {
     const url = window.location.href;
@@ -802,7 +687,6 @@ export default function WeddingInvitation() {
             <div className="hero-buttons">
               {wedding.weddingDate && <button className="button button-outline-light" type="button" onClick={saveWeddingDate}><CalendarDays size={16} /> Save the date</button>}
               <a className="button button-light" href="#celebrations"><CalendarDays size={16} /> View celebrations</a>
-              <a className="button button-outline-light" href="#rsvp">Kindly reply</a>
             </div>
           </div>
           <RoyalCornerFlourish position="top-left" />
@@ -919,7 +803,6 @@ export default function WeddingInvitation() {
                     <div className="event-actions">
                       {!wedding.privacy.hideFullAddresses && safeHttpUrl(event.mapUrl) && <a className="text-action" href={safeHttpUrl(event.mapUrl)!} target="_blank" rel="noreferrer"><MapPin size={15} /> View map</a>}
                       <EventCalendarActions event={event} />
-                      {event.showInRSVP && <a className="text-action" href="#rsvp"><ArrowRight size={15} /> RSVP for this event</a>}
                     </div>
                   </div>
                 </Reveal>
@@ -1032,83 +915,6 @@ export default function WeddingInvitation() {
             )}
           </div>
         </section>
-
-        <section className="rsvp section-pad" id="rsvp">
-          <div className="section-wrap">
-            <SectionHeading eyebrow="Your presence means the world" title="Will You Join Us?" />
-            <div className="rsvp-shell">
-              {rsvpSaved ? (
-                <div className="rsvp-success" aria-live="polite">
-                  <Logo className="success-logo" size={72} />
-                  <span className="success-mark"><Check size={25} /></span>
-                  <span className="eyebrow">Response received</span>
-                  <h3>Thank you, {rsvpSaved.guestName}.</h3>
-                  <p>We’re grateful you took a moment to let us know. Your response is saved on this device.</p>
-                  <div className="confirmation-summary">
-                    <span><strong>Your reply</strong>{attendanceLabels[rsvpSaved.attendance]}</span>
-                    <span><strong>Guests</strong>{rsvpSaved.attendeeCount}</span>
-                    {rsvpSaved.events.length > 0 && <span><strong>Celebrations</strong>{rsvpSaved.events.map((id) => wedding.events.find((event) => event.id === id)?.shortTitle).filter(Boolean).join(", ")}</span>}
-                  </div>
-                  <div className="success-actions"><button className="button button-primary" type="button" onClick={() => window.print()}><Printer size={16} /> Print confirmation</button><button className="text-action" type="button" onClick={editRSVP}>Change my response</button></div>
-                </div>
-              ) : (
-                <form className="rsvp-form" onSubmit={form.handleSubmit(submitRSVP)} noValidate>
-                  <p className="form-intro">A little note will help us welcome you well. Kindly share your response below.</p>
-                  {wedding.rsvpDeadline && <p className="rsvp-deadline">Kindly reply by {formatDate(wedding.rsvpDeadline)}.</p>}
-                  <div className="form-grid">
-                    <label className="field"><span>Your name <i>*</i></span><input autoComplete="name" {...form.register("guestName")} aria-invalid={Boolean(form.formState.errors.guestName)} aria-describedby="guestName-error" placeholder="Name as we know you" />{form.formState.errors.guestName && <small id="guestName-error" className="field-error">{form.formState.errors.guestName.message}</small>}</label>
-                    <label className="field"><span>Phone number <i>*</i></span><input type="tel" autoComplete="tel" {...form.register("phone")} aria-invalid={Boolean(form.formState.errors.phone)} aria-describedby="phone-error" placeholder="Your preferred number" />{form.formState.errors.phone && <small id="phone-error" className="field-error">{form.formState.errors.phone.message}</small>}</label>
-                    <label className="field"><span>Email address <small>(optional)</small></span><input type="email" autoComplete="email" {...form.register("email")} aria-invalid={Boolean(form.formState.errors.email)} aria-describedby="email-error" placeholder="you@example.com" />{form.formState.errors.email && <small id="email-error" className="field-error">{form.formState.errors.email.message}</small>}</label>
-                    <label className="field"><span>Number of attendees <i>*</i></span><select {...form.register("attendeeCount", { valueAsNumber: true })} aria-label="Number of attendees" aria-invalid={Boolean(form.formState.errors.attendeeCount)} aria-describedby="attendeeCount-error">{Array.from({ length: wedding.rsvp.maxAttendees - wedding.rsvp.minAttendees + 1 }, (_, index) => wedding.rsvp.minAttendees + index).map((number) => <option value={number} key={number}>{number}</option>)}</select>{form.formState.errors.attendeeCount && <small id="attendeeCount-error" className="field-error">Choose between {wedding.rsvp.minAttendees} and {wedding.rsvp.maxAttendees} attendees.</small>}</label>
-                  </div>
-                  <fieldset className="choice-fieldset" aria-describedby="attendance-error">
-                    <legend>Your response <i>*</i></legend>
-                    <div className="radio-row">
-                      {Object.entries(attendanceLabels).map(([value, label]) => <label className="choice-pill" key={value}><input type="radio" value={value} {...form.register("attendance")} /><span>{label}</span></label>)}
-                    </div>
-                    {form.formState.errors.attendance && <small id="attendance-error" className="field-error">{form.formState.errors.attendance.message}</small>}
-                  </fieldset>
-                  <fieldset className="choice-fieldset" aria-describedby="events-error">
-                    <legend>Which celebrations will you join?</legend>
-                    <div className="checkbox-row">
-                      {enabledEvents.filter((event) => event.showInRSVP).map((event) => <label className="choice-check" key={event.id}><input type="checkbox" value={event.id} {...form.register("events")} /><span>{event.shortTitle}</span></label>)}
-                    </div>
-                    {form.formState.errors.events && <small id="events-error" className="field-error">{form.formState.errors.events.message}</small>}
-                  </fieldset>
-                  <div className="form-grid">
-                    <label className="field"><span>Dietary preference</span><select {...form.register("dietaryPreference")}><option value="">Select if you wish</option><option>Vegetarian</option><option>Jain</option><option>Vegan</option><option>Other</option></select></label>
-                    <div className="field"><span>A little help with</span><div className="checkbox-row compact"><label className="choice-check"><input type="checkbox" {...form.register("accommodation")} /><span>Accommodation</span></label><label className="choice-check"><input type="checkbox" {...form.register("transportation")} /><span>Transportation</span></label></div></div>
-                  </div>
-                  <label className="field"><span>A message for us <small>(optional)</small></span><textarea rows={3} maxLength={500} {...form.register("message")} aria-invalid={Boolean(form.formState.errors.message)} aria-describedby="message-error" placeholder="Share a note or a wish..." />{form.formState.errors.message && <small id="message-error" className="field-error">{form.formState.errors.message.message}</small>}</label>
-                  {wedding.rsvp.showConsent && <label className="consent-field"><input type="checkbox" {...form.register("consent")} /><span>I understand this demo saves my response only in this browser.</span></label>}
-                  {form.formState.errors.consent && <small className="field-error">{form.formState.errors.consent.message}</small>}
-                  <div className="form-bottom"><button className="button button-primary" type="submit" disabled={rsvpBusy}>{rsvpBusy ? "Sending…" : "Send my response"}<ArrowRight size={16} /></button><span>We’ll be so glad to hear from you.</span></div>
-                  <p className="privacy-note">Demo note: your response is stored only in this browser, not sent to the couple.</p>
-                </form>
-              )}
-              {rsvpStatus && !rsvpSaved && <p className="status-message" role="status">{rsvpStatus}</p>}
-            </div>
-          </div>
-        </section>
-
-        {wedding.theme.showWishes && (
-          <section className="wishes section-pad">
-            <div className="section-wrap wishes-wrap">
-              <SectionHeading eyebrow="A note to keep close" title="Send a Little Love" />
-              <div className="wishes-layout">
-                <div className="wish-list">
-                  {wishes.map((wish, index) => <article className="wish-card" key={`${wish.name}-${index}`}><span aria-hidden="true">“</span><p>{wish.message}</p><strong>{wish.name}</strong></article>)}
-                </div>
-                <form className="wish-form" ref={wishFormRef} onSubmit={submitWish}>
-                  <p>Leave a wish for our new beginning.</p>
-                  <label className="field"><span>Your name</span><input name="wish-name" required minLength={2} maxLength={60} placeholder="Your name" /></label>
-                  <label className="field"><span>Your message</span><textarea name="wish-message" required minLength={3} maxLength={240} rows={3} placeholder="Write something from the heart..." /></label>
-                  <div className="wish-submit"><button className="button button-primary" type="submit">Share your wish <ArrowRight size={16} /></button><small aria-live="polite">{wishStatus || "Your wish is shown only on this device."}</small></div>
-                </form>
-              </div>
-            </div>
-          </section>
-        )}
 
         <section className="share-section section-pad" aria-labelledby="share-title">
           <Reveal className="share-inner">
