@@ -485,7 +485,7 @@ export default function WeddingInvitation() {
 
   useEffect(() => {
     if (!coverOpen) {
-      heroTitleRef.current?.focus();
+      heroTitleRef.current?.focus({ preventScroll: true });
       return;
     }
     openInvitationRef.current?.focus();
@@ -679,7 +679,15 @@ export default function WeddingInvitation() {
             <Logo className="hero-logo" size={96} />
             <span className="eyebrow hero-eyebrow">{wedding.invitation.eyebrow}</span>
             <RoyalFiligreeDivider />
-            <motion.h1 ref={heroTitleRef} tabIndex={-1} id="hero-title" initial={reducedMotion ? false : { opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 1 }}>
+            <motion.h1
+              ref={heroTitleRef}
+              tabIndex={-1}
+              id="hero-title"
+              style={{ outline: "none" }}
+              initial={reducedMotion ? false : { opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reducedMotion ? 0 : 1 }}
+            >
               {wedding.couple.brideFirstName}<span className="ampersand"> &amp; </span>{wedding.couple.groomFirstName}
             </motion.h1>
             <p className="hero-tagline">{wedding.couple.shortIntroduction}</p>

@@ -42,6 +42,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   outline: 3px solid var(--color-warm-gold);
   outline-offset: 3px;
 }
+[tabindex="-1"]:focus,
+[tabindex="-1"]:focus-visible,
+#hero-title:focus,
+#hero-title:focus-visible,
+.hero h1:focus,
+.hero h1:focus-visible {
+  outline: none !important;
+  box-shadow: none;
+}
 .sr-only {
   position: absolute;
   width: 1px;
@@ -345,6 +354,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   letter-spacing: .02em;
   line-height: 1.02;
   text-shadow: 0 4px 24px rgba(0, 0, 0, .75), 0 1px 4px rgba(229, 195, 120, .5);
+  outline: none !important;
+}
+.hero h1:focus,
+.hero h1:focus-visible {
+  outline: none !important;
 }
 .ampersand {
   color: var(--color-warm-gold);
