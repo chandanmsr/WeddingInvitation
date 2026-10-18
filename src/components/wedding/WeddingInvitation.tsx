@@ -1022,6 +1022,18 @@ export default function WeddingInvitation() {
                     }}
                     onClick={() => setLightboxIndex(gallerySlide)}
                   >
+                    {gallery[gallerySlide].src && (
+                      <div className="slideshow-backdrop" aria-hidden="true">
+                        <AssetImage
+                          src={gallery[gallerySlide].src!}
+                          alt=""
+                          fill
+                          sizes="820px"
+                          className="slideshow-backdrop-img"
+                        />
+                        <div className="slideshow-backdrop-overlay" />
+                      </div>
+                    )}
                     {gallery[gallerySlide].src ? (
                       <AssetImage
                         src={gallery[gallerySlide].src!}
@@ -1034,19 +1046,6 @@ export default function WeddingInvitation() {
                     ) : (
                       <span className="gallery-art" aria-hidden="true"><span>✿</span><i /><b /></span>
                     )}
-
-                    <div className="slideshow-meta-overlay">
-                      <span className="slideshow-tag">{gallery[gallerySlide].category}</span>
-                      <span className="slideshow-caption-text">{gallery[gallerySlide].alt}</span>
-                      <div className="slideshow-action-row">
-                        <span className="slideshow-counter-badge">
-                          0{gallerySlide + 1} / 0{gallery.length}
-                        </span>
-                        <span className="slideshow-expand-cue">
-                          <Maximize2 size={13} /> View Full
-                        </span>
-                      </div>
-                    </div>
                   </motion.div>
                 </div>
 
@@ -1058,6 +1057,27 @@ export default function WeddingInvitation() {
                 >
                   <ArrowRight size={22} />
                 </button>
+              </div>
+
+              {/* Photo Details Bar (Below photo frame so it never covers the picture) */}
+              <div className="slideshow-details-bar">
+                <div className="slideshow-details-text">
+                  <span className="slideshow-tag">{gallery[gallerySlide].category}</span>
+                  <h3 className="slideshow-caption-text">{gallery[gallerySlide].alt}</h3>
+                </div>
+                <div className="slideshow-details-actions">
+                  <span className="slideshow-counter-badge">
+                    0{gallerySlide + 1} / 0{gallery.length}
+                  </span>
+                  <button
+                    type="button"
+                    className="slideshow-expand-btn"
+                    onClick={() => setLightboxIndex(gallerySlide)}
+                    aria-label="View photograph full size"
+                  >
+                    <Maximize2 size={13} /> Fullscreen
+                  </button>
+                </div>
               </div>
 
               {/* Filmstrip Thumbnails */}
@@ -1284,7 +1304,30 @@ export default function WeddingInvitation() {
                 else if (info.offset.x > 60) setLightboxIndex((lightboxIndex - 1 + gallery.length) % gallery.length);
               }}
             >
-              {gallery[lightboxIndex].src ? <AssetImage src={gallery[lightboxIndex].src!} alt={gallery[lightboxIndex].alt} fill sizes="(max-width: 760px) 82vw, 640px" /> : <span aria-hidden="true">✿</span>}
+              {gallery[lightboxIndex].src && (
+                <div className="lightbox-backdrop" aria-hidden="true">
+                  <AssetImage
+                    src={gallery[lightboxIndex].src!}
+                    alt=""
+                    fill
+                    sizes="920px"
+                    className="lightbox-backdrop-img"
+                  />
+                  <div className="lightbox-backdrop-overlay" />
+                </div>
+              )}
+              {gallery[lightboxIndex].src ? (
+                <AssetImage
+                  src={gallery[lightboxIndex].src!}
+                  alt={gallery[lightboxIndex].alt}
+                  fill
+                  sizes="(max-width: 760px) 94vw, 920px"
+                  className="lightbox-active-img"
+                  priority
+                />
+              ) : (
+                <span aria-hidden="true">✿</span>
+              )}
               {!gallery[lightboxIndex].src && <p>A photograph will bloom here</p>}
             </motion.div>
             <div className="lightbox-caption"><span>{gallery[lightboxIndex].alt}</span><span>{lightboxIndex + 1} / {gallery.length}</span></div>
