@@ -151,9 +151,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .main-nav a:hover::after, .main-nav a.nav-active::after { transform: scaleX(1); }
 .mobile-menu-toggle { display: none; border: 0; background: none; color: inherit; }
 
-/* Pinned Header Countdown Timer */
+/* Pinned Header Countdown Timer (Visible only on mobile) */
 .header-timer {
-  display: flex;
+  display: none;
   align-items: center;
   margin: 0 auto;
 }
@@ -1711,7 +1711,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .brand { gap: 8px; }
   .brand-logo { height: 36px; }
   .brand-name { font-size: 16px; letter-spacing: .03em; }
-  .header-timer { margin: 0; }
+  .header-timer {
+    display: flex;
+    align-items: center;
+    margin: 0;
+  }
   .header-timer-pill {
     padding: 3px 8px;
     gap: 4px;
@@ -1760,14 +1764,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .couple-text { max-width: 520px; margin: auto; }
   .couple-stamp { right: -8px; }
   
-  /* Mobile Countdown Section (Compact) */
-  .countdown { padding: 48px 16px; }
-  .countdown h2 { font-size: 32px; margin: 8px 0 20px; }
-  .countdown-glow { width: 380px; height: 380px; top: -160px; }
-  .countdown-grid { gap: 12px; }
-  .countdown-unit { min-width: 54px; }
-  .countdown-unit strong { font-size: 38px; }
-  .countdown-unit span { font-size: 8.5px; margin-top: 6px; }
+  /* Counting the moments section hidden on mobile (only pinned to header on mobile) */
+  .countdown {
+    display: none !important;
+  }
 
   /* Wedding Celebrations: Scrollable Slideshow on Mobile */
   .event-grid {
@@ -1898,11 +1898,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .portrait-frame { min-height: 380px; }
   .portrait-logo { height: 56px; margin-bottom: 74px; }
   .couple-stamp { right: 2px; width: 76px; height: 76px; font-size: 8px; }
-  .countdown { padding: 40px 12px; }
-  .countdown-grid { gap: 8px; }
-  .countdown-unit { min-width: 46px; }
-  .countdown-unit strong { font-size: 30px; }
-  .countdown-unit span { font-size: 7.5px; letter-spacing: .1em; }
   .event-card { flex: 0 0 88vw; max-width: 320px; }
   .slideshow-frame-wrapper { aspect-ratio: 1 / 1; }
   .share-actions { flex-direction: column; align-items: center; width: 100%; }
