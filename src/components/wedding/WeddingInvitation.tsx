@@ -364,9 +364,10 @@ export default function WeddingInvitation() {
   const [shareStatus, setShareStatus] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
   const ambientDroneRef = useRef<{ stop: () => void } | null>(null);
-  const galleryTrackRef = useRef<HTMLDivElement>(null);
-  const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(true);
+  const eventsTrackRef = useRef<HTMLDivElement>(null);
+  const [activeEventIndex, setActiveEventIndex] = useState(0);
+  const [gallerySlide, setGallerySlide] = useState(0);
+  const [galleryPaused, setGalleryPaused] = useState(false);
   const openInvitationRef = useRef<HTMLButtonElement>(null);
   const heroTitleRef = useRef<HTMLHeadingElement>(null);
   const lightboxCloseRef = useRef<HTMLButtonElement>(null);
@@ -453,26 +454,40 @@ export default function WeddingInvitation() {
   }, []);
 
   useEffect(() => {
-    const track = galleryTrackRef.current;
-    if (!track) return;
-    const update = () => {
-      setCanScrollPrev(track.scrollLeft > 4);
-      setCanScrollNext(track.scrollLeft + track.clientWidth < track.scrollWidth - 4);
-    };
-    update();
-    track.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
-    return () => {
-      track.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-    };
-  }, []);
+    if (galleryPaused) return;
+    const timer = setInterval(() => {
+      setGallerySlide((prev) => (prev + 1) % gallery.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [galleryPaused, gallery.length]);
 
-  function scrollGallery(direction: 1 | -1) {
-    const track = galleryTrackRef.current;
+  const prevGallerySlide = useCallback(() => {
+    setGallerySlide((prev) => (prev - 1 + gallery.length) % gallery.length);
+  }, [gallery.length]);
+
+  const nextGallerySlide = useCallback(() => {
+    setGallerySlide((prev) => (prev + 1) % gallery.length);
+  }, [gallery.length]);
+
+  const handleEventsScroll = useCallback(() => {
+    const track = eventsTrackRef.current;
     if (!track) return;
-    track.scrollBy({ left: direction * track.clientWidth * 0.8, behavior: reducedMotion ? "auto" : "smooth" });
-  }
+    const card = track.firstElementChild as HTMLElement;
+    const cardWidth = card ? card.offsetWidth + 16 : 320;
+    const index = Math.round(track.scrollLeft / cardWidth);
+    setActiveEventIndex(Math.max(0, Math.min(index, enabledEvents.length - 1)));
+  }, [enabledEvents.length]);
+
+  const scrollEventsTo = (index: number) => {
+    const track = eventsTrackRef.current;
+    if (!track) return;
+    const boundedIndex = Math.max(0, Math.min(index, enabledEvents.length - 1));
+    const targetCard = track.children[boundedIndex] as HTMLElement;
+    if (targetCard) {
+      targetCard.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      setActiveEventIndex(boundedIndex);
+    }
+  };
 
   useEffect(() => {
     if (lightboxIndex === null) return;
@@ -676,6 +691,22 @@ export default function WeddingInvitation() {
           <Logo className="brand-logo" size={44} />
           <span className="brand-name">{wedding.couple.displayName}</span>
         </a>
+
+        {countdownParts && (
+          <div className="header-timer" aria-label="Wedding Countdown">
+            <div className="header-timer-pill">
+              <Clock3 size={12} className="header-timer-icon" />
+              <span className="ht-unit"><strong>{countdownParts.days}</strong><small>d</small></span>
+              <span className="ht-sep">:</span>
+              <span className="ht-unit"><strong>{String(countdownParts.hours).padStart(2, "0")}</strong><small>h</small></span>
+              <span className="ht-sep">:</span>
+              <span className="ht-unit"><strong>{String(countdownParts.minutes).padStart(2, "0")}</strong><small>m</small></span>
+              <span className="ht-sep">:</span>
+              <span className="ht-unit"><strong>{String(countdownParts.seconds).padStart(2, "0")}</strong><small>s</small></span>
+            </div>
+          </div>
+        )}
+
         <button className="mobile-menu-toggle" type="button" aria-label={isNavOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={isNavOpen} onClick={() => setIsNavOpen(!isNavOpen)}>
           {isNavOpen ? <X size={21} /> : <Menu size={21} />}
         </button>
@@ -835,7 +866,11 @@ export default function WeddingInvitation() {
         <section className="events section-pad" id="celebrations">
           <div className="section-wrap">
             <SectionHeading eyebrow="A gathering of hearts" title="Wedding Celebrations" />
-            <div className="event-grid">
+            <div
+              className="event-grid"
+              ref={eventsTrackRef}
+              onScroll={handleEventsScroll}
+            >
               {enabledEvents.map((event, index) => (
                 <Reveal key={event.id} className={`event-card event-${event.accentColor}`}>
                   {event.image ? (
@@ -874,7 +909,46 @@ export default function WeddingInvitation() {
                 </Reveal>
               ))}
             </div>
-            <p className="setup-note">Event dates and times will be added here once confirmed.</p>
+
+            {/* Mobile Slideshow Controls */}
+            <div className="events-mobile-controls" aria-label="Celebration events slideshow navigation">
+              <button
+                className="carousel-arrow events-arrow-prev"
+                type="button"
+                aria-label="Previous celebration"
+                onClick={() => scrollEventsTo(activeEventIndex - 1)}
+                disabled={activeEventIndex === 0}
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <div className="events-dots">
+                {enabledEvents.map((ev, idx) => (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    className={`events-dot ${activeEventIndex === idx ? "dot-active" : ""}`}
+                    onClick={() => scrollEventsTo(idx)}
+                    aria-label={`Go to ${ev.name}`}
+                  >
+                    <span>{idx + 1}</span>
+                  </button>
+                ))}
+              </div>
+              <button
+                className="carousel-arrow events-arrow-next"
+                type="button"
+                aria-label="Next celebration"
+                onClick={() => scrollEventsTo(activeEventIndex + 1)}
+                disabled={activeEventIndex === enabledEvents.length - 1}
+              >
+                <ArrowRight size={18} />
+              </button>
+            </div>
+            <div className="events-counter-label" aria-live="polite">
+              <span>Event {activeEventIndex + 1} of {enabledEvents.length}: <strong>{enabledEvents[activeEventIndex]?.name}</strong></span>
+            </div>
+
+            <p className="setup-note">Swipe horizontally to explore all ceremonies.</p>
           </div>
         </section>
 
@@ -910,40 +984,123 @@ export default function WeddingInvitation() {
         <section className="gallery-section section-pad" id="gallery">
           <div className="section-wrap">
             <SectionHeading eyebrow="Little moments, held close" title="A Gallery of Us" />
-            <div className="gallery-carousel">
-              <button className="carousel-arrow carousel-prev" type="button" aria-label="Previous photographs" onClick={() => scrollGallery(-1)} disabled={!canScrollPrev}><ArrowLeft size={20} /></button>
-              <motion.div
-                className="gallery-track"
-                ref={galleryTrackRef}
-                role="region"
-                aria-roledescription="carousel"
-                aria-label="Photo gallery. Swipe or use the arrows to browse."
-                initial="hidden"
-                whileInView="show"
-                viewport={{ once: true, amount: 0.2 }}
-                variants={{ hidden: {}, show: { transition: { staggerChildren: reducedMotion ? 0 : 0.09 } } }}
-              >
-                {gallery.map((image, index) => (
+            <div
+              className="gallery-slideshow"
+              onMouseEnter={() => setGalleryPaused(true)}
+              onMouseLeave={() => setGalleryPaused(false)}
+              onTouchStart={() => setGalleryPaused(true)}
+            >
+              <div className="slideshow-stage">
+                <button
+                  className="carousel-arrow slideshow-arrow-left"
+                  type="button"
+                  aria-label="Previous photograph"
+                  onClick={prevGallerySlide}
+                >
+                  <ArrowLeft size={22} />
+                </button>
+
+                <div className="slideshow-frame-wrapper">
+                  <RoyalCornerFlourish position="top-left" />
+                  <RoyalCornerFlourish position="top-right" />
+                  <RoyalCornerFlourish position="bottom-left" />
+                  <RoyalCornerFlourish position="bottom-right" />
+
                   <motion.div
-                    className="gallery-slide"
-                    key={`${image.alt}-${index}`}
-                    variants={{ hidden: { opacity: 0, x: reducedMotion ? 0 : 48, scale: reducedMotion ? 1 : 0.96 }, show: { opacity: 1, x: 0, scale: 1, transition: { duration: reducedMotion ? 0 : 0.6, ease: [0.2, 0.7, 0.2, 1] } } }}
+                    key={gallerySlide}
+                    className="slideshow-active-card"
+                    initial={reducedMotion ? false : { opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: reducedMotion ? 0 : 0.4, ease: "easeOut" }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.2}
+                    onDragEnd={(_, info) => {
+                      if (info.offset.x < -40) nextGallerySlide();
+                      else if (info.offset.x > 40) prevGallerySlide();
+                    }}
+                    onClick={() => setLightboxIndex(gallerySlide)}
                   >
-                    <button className={`gallery-tile gallery-${image.color}`} type="button" onClick={() => setLightboxIndex(index)} aria-label={`Open photograph ${index + 1} of ${gallery.length}: ${image.alt}`}>
-                      {image.src ? <AssetImage src={image.src} alt="" fill sizes="(max-width: 760px) 72vw, 320px" className="gallery-photo" /> : <span className="gallery-art" aria-hidden="true"><span>✿</span><i /><b /></span>}
-                      <span className="gallery-index">0{index + 1}</span>
-                      <span className="gallery-preview" aria-hidden="true">
-                        <span className="gallery-category">{image.category}</span>
-                        <span className="gallery-label">{image.src ? image.alt : "A photograph will bloom here"}</span>
-                        <span className="gallery-view"><Maximize2 size={14} /> View</span>
-                      </span>
-                    </button>
+                    {gallery[gallerySlide].src ? (
+                      <AssetImage
+                        src={gallery[gallerySlide].src!}
+                        alt={gallery[gallerySlide].alt}
+                        fill
+                        sizes="(max-width: 760px) 94vw, 840px"
+                        className="slideshow-active-img"
+                        priority
+                      />
+                    ) : (
+                      <span className="gallery-art" aria-hidden="true"><span>✿</span><i /><b /></span>
+                    )}
+
+                    <div className="slideshow-meta-overlay">
+                      <span className="slideshow-tag">{gallery[gallerySlide].category}</span>
+                      <span className="slideshow-caption-text">{gallery[gallerySlide].alt}</span>
+                      <div className="slideshow-action-row">
+                        <span className="slideshow-counter-badge">
+                          0{gallerySlide + 1} / 0{gallery.length}
+                        </span>
+                        <span className="slideshow-expand-cue">
+                          <Maximize2 size={13} /> View Full
+                        </span>
+                      </div>
+                    </div>
                   </motion.div>
+                </div>
+
+                <button
+                  className="carousel-arrow slideshow-arrow-right"
+                  type="button"
+                  aria-label="Next photograph"
+                  onClick={nextGallerySlide}
+                >
+                  <ArrowRight size={22} />
+                </button>
+              </div>
+
+              {/* Filmstrip Thumbnails */}
+              <div className="slideshow-thumbnails" role="tablist" aria-label="Photo thumbnails">
+                {gallery.map((image, index) => (
+                  <button
+                    key={`${image.alt}-${index}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={gallerySlide === index}
+                    aria-label={`View photo ${index + 1}: ${image.alt}`}
+                    className={`slideshow-thumbnail-btn ${gallerySlide === index ? "is-selected" : ""}`}
+                    onClick={() => setGallerySlide(index)}
+                  >
+                    {image.src && (
+                      <Image
+                        src={image.src}
+                        alt=""
+                        fill
+                        sizes="80px"
+                        className="thumbnail-img"
+                      />
+                    )}
+                    <span className="thumbnail-num">0{index + 1}</span>
+                  </button>
                 ))}
-              </motion.div>
-              <button className="carousel-arrow carousel-next" type="button" aria-label="Next photographs" onClick={() => scrollGallery(1)} disabled={!canScrollNext}><ArrowRight size={20} /></button>
+              </div>
+
+              {/* Dots Indicator */}
+              <div className="slideshow-dots" aria-label="Slide indicators">
+                {gallery.map((_, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    className={`slideshow-dot ${gallerySlide === index ? "dot-active" : ""}`}
+                    onClick={() => setGallerySlide(index)}
+                    aria-label={`Slide ${index + 1}`}
+                  />
+                ))}
+              </div>
+
+              <p className="gallery-caption">Our favorite memories, with a few more to come.</p>
             </div>
-            <p className="gallery-caption">Our favorite memories, with a few more to come.</p>
           </div>
         </section>
 
