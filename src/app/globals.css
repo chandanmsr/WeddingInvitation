@@ -22,18 +22,30 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 88px; }
+html {
+  scroll-padding-top: 88px;
+}
 body {
   margin: 0;
+  position: relative;
   background-color: #faf6ee;
-  background-image: url('/images/royal_pattern.svg');
-  background-repeat: repeat;
-  background-size: 72px 101px;
   color: var(--color-text);
   font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-color: #faf6ee;
+  background-image: url('/images/royal_pattern.svg');
+  background-repeat: repeat;
+  background-size: 72px 101px;
+  pointer-events: none;
+  transform: translateZ(0);
 }
 button, input, select, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
@@ -168,8 +180,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @keyframes sound { to { height: 3px; } }
 
 /* Floating Flower Petals */
-.petal-overlay { position: fixed; z-index: 6; inset: 0; overflow: hidden; pointer-events: none; }
-.petal-overlay span { position: absolute; top: -50px; line-height: 1; animation: petal-drift 22s linear infinite; will-change: transform; }
+.petal-overlay {
+  position: fixed;
+  z-index: 6;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+.petal-overlay span {
+  position: absolute;
+  top: -50px;
+  line-height: 1;
+  animation: petal-drift 22s linear infinite;
+  transform: translateZ(0);
+}
 @keyframes petal-drift {
   0% { transform: translate3d(0, -4vh, 0) rotate(0); opacity: 0; }
   10% { opacity: 1; }
@@ -274,7 +299,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   opacity: .72;
   filter: brightness(.92) contrast(1.05);
 }
-.hero-scene { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.hero-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform: translateZ(0);
+  will-change: transform;
+}
 .sun-disc {
   position: absolute;
   top: 15%;
@@ -727,6 +759,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   background: #fffdf8;
   box-shadow: 0 12px 36px rgba(55, 20, 28, .07);
   transition: transform .35s cubic-bezier(.2, .7, .2, 1), box-shadow .35s;
+  transform: translateZ(0);
 }
 .event-card:hover {
   transform: translateY(-6px);
@@ -763,12 +796,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   padding: 0 8px;
   border: 1px solid #f3e5ab;
   border-radius: 999px;
-  background: rgba(30, 6, 14, .78);
+  background: rgba(30, 6, 14, .92);
   color: #f3e5ab;
   font-family: var(--font-royal);
   font-size: 13px;
   font-weight: 600;
-  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .4);
 }
 .event-badge-icon {
   position: absolute;
@@ -895,6 +928,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   border-radius: 8px;
   background: #fffdf8;
   box-shadow: 0 12px 34px rgba(52, 25, 30, .06);
+  transform: translateZ(0);
 }
 .story-number {
   display: block;
@@ -922,6 +956,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   border-radius: 8px;
   background: linear-gradient(150deg, #e8cbc1, #b77877 58%, #785052);
   box-shadow: 0 14px 36px rgba(52, 25, 30, .14);
+  transform: translateZ(0);
 }
 .story-media::before {
   position: absolute;

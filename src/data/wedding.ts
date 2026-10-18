@@ -303,9 +303,33 @@ const wedding: WeddingConfig = {
     },
   ]).map((event) => (event.enabled ? { ...event, venueName: mainVenue.name, address: mainVenue.address, mapUrl: mainVenue.mapUrl } : event)),
   story: [
-    { title: "First Meeting", dateLabel: "[Add date or season]", description: "[Add a short memory from your first meeting.]", image: "/images/story/OurStory1.jpeg", alignment: "left", enabled: true },
-    { title: "Friendship", dateLabel: "[Add date or season]", description: "[Share a favorite moment from your friendship.]", image: "/images/story/OurStory2.jpeg", alignment: "right", enabled: true },
-    { title: "The Moment We Knew", dateLabel: "[Add date or season]", description: "[Describe the moment you knew you wanted a future together.]", image: "/images/story/OurStory3.jpeg", alignment: "left", enabled: true },
+    {
+      title: "Hello, Wedding Guest 💃",
+      dateLabel: "How It Began",
+      description:
+        "We met at my cousin's wedding, where everyone else was busy watching the bride and groom. Little did we know, the real love story was happening at the snacks table.",
+      image: "/images/story/OurStory1.jpeg",
+      alignment: "left",
+      enabled: true,
+    },
+    {
+      title: "Jokes, Faces & Everything In Between 😄",
+      dateLabel: "Endless Laughter",
+      description:
+        "I crack the jokes, she makes the faces, and somehow it works perfectly. Annoying her became my favourite hobby, and her eye-rolls became my favourite compliment.",
+      image: "/images/story/OurStory2.jpeg",
+      alignment: "right",
+      enabled: true,
+    },
+    {
+      title: "The Moment We Just Knew 💛",
+      dateLabel: "Forever Begins",
+      description:
+        "It never felt like an effort, and even the silences felt comfortable. Somewhere along the way, we made each other feel complete, and that was all the proof we needed.",
+      image: "/images/story/OurStory3.jpeg",
+      alignment: "left",
+      enabled: true,
+    },
     { title: "The Proposal", dateLabel: "[Add date or season]", description: "[Add a few words about the proposal.]", image: null, alignment: "right", enabled: false },
     { title: "Seven Pheras", dateLabel: "[Add date or season]", description: "[Add a note about the beginning of your married life.]", image: null, alignment: "left", enabled: false },
   ],

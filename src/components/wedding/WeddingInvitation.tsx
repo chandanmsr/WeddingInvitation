@@ -44,24 +44,24 @@ import {
 const navigation = [
   ["Home", "home"],
   ["Celebrations", "celebrations"],
-  ["Our Story", "story"],
+  ["Our Love Story", "story"],
   ["Gallery", "gallery"],
   ["Venue", "venue"],
 ] as const;
 
 const petalGlyphs = ["✿", "❀", "✾", "❁", "✽", "❋"];
 const petalColors = ["234, 190, 190", "216, 184, 106", "245, 214, 204", "205, 140, 150", "255, 240, 214"];
-// Deterministic values keep server and client markup identical.
-const petals = Array.from({ length: 44 }, (_, i) => ({
+// Deterministic values keep server and client markup identical, optimized to 16 petals for buttery smooth scrolling.
+const petals = Array.from({ length: 16 }, (_, i) => ({
   left: (i * 37 + (i % 5) * 7) % 100,
-  size: [10, 14, 20, 28, 36, 16, 24, 12][i % 8],
-  duration: 14 + ((i * 7) % 13),
-  delay: -((i * 5.3) % 24),
-  drift: ((i % 7) - 3) * 22,
-  spin: 180 + (i % 5) * 90,
+  size: [10, 14, 20, 24, 16, 22, 12, 18][i % 8],
+  duration: 16 + ((i * 7) % 11),
+  delay: -((i * 4.3) % 20),
+  drift: ((i % 5) - 2) * 20,
+  spin: 180 + (i % 4) * 90,
   glyph: petalGlyphs[i % petalGlyphs.length],
   color: petalColors[(i * 3) % petalColors.length],
-  opacity: 0.32 + (i % 4) * 0.12,
+  opacity: 0.3 + (i % 3) * 0.1,
 }));
 
 const confettiColors = ["#d8b86a", "#f6e3a1", "#c04a62", "#f2a7b4", "#fff5e4", "#7fb69a", "#e8843c"];
@@ -109,6 +109,9 @@ function PartyPoppers() {
       }
     };
 
+    let allFired = false;
+    const finishTimer = window.setTimeout(() => { allFired = true; }, 900);
+
     const timers = [0, 380, 760].flatMap((delay, index) => [
       window.setTimeout(() => burst(1, 70 - index * 10), delay),
       window.setTimeout(() => burst(-1, 70 - index * 10), delay),
@@ -146,12 +149,15 @@ function PartyPoppers() {
         }
         ctx.restore();
       }
-      frame = requestAnimationFrame(draw);
+      if (pieces.length > 0 || !allFired) {
+        frame = requestAnimationFrame(draw);
+      }
     };
     frame = requestAnimationFrame(draw);
     window.addEventListener("resize", resize);
     return () => {
       timers.forEach(window.clearTimeout);
+      window.clearTimeout(finishTimer);
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", resize);
     };
@@ -202,10 +208,11 @@ function Reveal({ children, className = "" }: { children: ReactNode; className?:
   return (
     <motion.div
       className={className}
-      initial={reduced ? false : { opacity: 0, y: 22 }}
+      initial={reduced ? false : { opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.14 }}
-      transition={{ duration: reduced ? 0 : 0.65, ease: [0.2, 0.7, 0.2, 1] }}
+      viewport={{ once: true, amount: 0.1 }}
+      transition={{ duration: reduced ? 0 : 0.45, ease: "easeOut" }}
+      style={{ willChange: "transform, opacity" }}
     >
       {children}
     </motion.div>
@@ -215,9 +222,9 @@ function Reveal({ children, className = "" }: { children: ReactNode; className?:
 function AssetImage({ src, alt, className, fill, sizes, width, height, priority }: { src: string; alt: string; className?: string; fill?: boolean; sizes?: string; width?: number; height?: number; priority?: boolean }) {
   const [failed, setFailed] = useState(false);
   // Images that failed before hydration never fire React's onError, so check the element once mounted.
-  const check = (node: HTMLImageElement | null) => {
+  const check = useCallback((node: HTMLImageElement | null) => {
     if (node && node.complete && node.naturalWidth === 0) setFailed(true);
-  };
+  }, []);
   if (failed) return null;
   return fill
     ? <Image ref={check} src={src} alt={alt} className={className} fill sizes={sizes} priority={priority} onError={() => setFailed(true)} />
@@ -408,13 +415,25 @@ export default function WeddingInvitation() {
   }, []);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 28);
+    let ticking = false;
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const isScrolled = window.scrollY > 28;
+          setScrolled((prev) => (prev !== isScrolled ? isScrolled : prev));
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     const observer = new IntersectionObserver((entries) => {
       const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-      if (visible) setActiveSection(visible.target.id);
-    }, { rootMargin: "-25% 0px -60% 0px", threshold: [0, 0.25, 0.5] });
+      if (visible) {
+        setActiveSection((prev) => (prev !== visible.target.id ? visible.target.id : prev));
+      }
+    }, { rootMargin: "-25% 0px -55% 0px", threshold: 0.1 });
     navigation.forEach(([, id]) => {
       const section = document.getElementById(id);
       if (section) observer.observe(section);
@@ -644,7 +663,16 @@ export default function WeddingInvitation() {
       )}
 
       <header className={`site-header ${scrolled || coverOpen ? "header-solid" : ""}`}>
-        <a className="brand" href="#home" onClick={() => setIsNavOpen(false)} aria-label={`${wedding.couple.displayName} home`}>
+        <a
+          className="brand"
+          href="#home"
+          onClick={(e) => {
+            e.preventDefault();
+            setIsNavOpen(false);
+            document.getElementById("home")?.scrollIntoView({ behavior: "smooth" });
+          }}
+          aria-label={`${wedding.couple.displayName} home`}
+        >
           <Logo className="brand-logo" size={44} />
           <span className="brand-name">{wedding.couple.displayName}</span>
         </a>
@@ -653,7 +681,18 @@ export default function WeddingInvitation() {
         </button>
         <nav className={`main-nav ${isNavOpen ? "nav-open" : ""}`} aria-label="Main navigation">
           {navigation.map(([label, id]) => (
-            <a key={id} className={activeSection === id ? "nav-active" : ""} href={`#${id}`} onClick={() => setIsNavOpen(false)}>{label}</a>
+            <a
+              key={id}
+              className={activeSection === id ? "nav-active" : ""}
+              href={`#${id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                setIsNavOpen(false);
+                document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              {label}
+            </a>
           ))}
         </nav>
       </header>
@@ -694,14 +733,33 @@ export default function WeddingInvitation() {
             <p className="hero-date">{dateLabel}<span>{wedding.couple.locationLabel}</span></p>
             <div className="hero-buttons">
               {wedding.weddingDate && <button className="button button-outline-light" type="button" onClick={saveWeddingDate}><CalendarDays size={16} /> Save the date</button>}
-              <a className="button button-light" href="#celebrations"><CalendarDays size={16} /> View celebrations</a>
+              <a
+                className="button button-light"
+                href="#celebrations"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById("celebrations")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                <CalendarDays size={16} /> View celebrations
+              </a>
             </div>
           </div>
           <RoyalCornerFlourish position="top-left" />
           <RoyalCornerFlourish position="top-right" />
           <RoyalCornerFlourish position="bottom-left" />
           <RoyalCornerFlourish position="bottom-right" />
-          <a className="scroll-cue" href="#invitation" aria-label="Scroll to invitation message"><span>Scroll to discover</span><ArrowDown size={17} /></a>
+          <a
+            className="scroll-cue"
+            href="#invitation"
+            aria-label="Scroll to invitation message"
+            onClick={(e) => {
+              e.preventDefault();
+              document.getElementById("invitation")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
+            <span>Scroll to discover</span><ArrowDown size={17} />
+          </a>
           <div className="hero-frame" aria-hidden="true" />
         </section>
 
@@ -822,20 +880,21 @@ export default function WeddingInvitation() {
 
         <section className="story section-pad" id="story">
           <div className="section-wrap">
-            <SectionHeading eyebrow="A journey, made sweeter together" title="Our Story" />
+            <SectionHeading eyebrow="A journey, made sweeter together" title="Our Love Story" />
             <ol className="story-timeline">
               {wedding.story.filter((entry) => entry.enabled).map((entry, index) => (
                 <motion.li
                   key={entry.title}
                   className={`story-item ${index % 2 === 0 ? "story-left" : "story-right"}`}
-                  initial={reducedMotion ? false : { opacity: 0, y: 22 }}
+                  initial={reducedMotion ? false : { opacity: 0, y: 16 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, amount: 0.14 }}
-                  transition={{ duration: reducedMotion ? 0 : 0.65, ease: [0.2, 0.7, 0.2, 1] }}
+                  viewport={{ once: true, amount: 0.1 }}
+                  transition={{ duration: reducedMotion ? 0 : 0.45, ease: "easeOut" }}
+                  style={{ willChange: "transform, opacity" }}
                 >
                   <article className="story-card">
                     <span className="story-number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-                    <span className="eyebrow">{entry.dateLabel}</span>
+                    {entry.dateLabel && <span className="eyebrow">{entry.dateLabel}</span>}
                     <h3>{entry.title}</h3>
                     <p>{entry.description}</p>
                   </article>
@@ -938,9 +997,18 @@ export default function WeddingInvitation() {
             <p className="share-status" aria-live="polite">{shareStatus}</p>
           </Reveal>
         </section>
-
         <footer className="closing">
-          <a className="back-top" href="#home" aria-label="Back to top"><ArrowUp size={17} /></a>
+          <a
+            className="back-top"
+            href="#home"
+            aria-label="Back to top"
+            onClick={(e) => {
+              e.preventDefault();
+              document.getElementById("home")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
+            <ArrowUp size={17} />
+          </a>
           <Logo className="closing-logo" size={80} />
           <span className="eyebrow">With love,</span>
           <h2>{wedding.couple.displayName}</h2>
