@@ -747,7 +747,6 @@ export default function WeddingInvitation() {
           <div className="hero-copy">
             <div className="hero-shree-ganesh">॥ श्री गणेशाय नमः ॥</div>
             <Logo className="hero-logo" size={96} />
-            <span className="eyebrow hero-eyebrow">{wedding.invitation.eyebrow}</span>
             <RoyalFiligreeDivider />
             <motion.h1
               ref={heroTitleRef}
